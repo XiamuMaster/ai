@@ -1,7 +1,6 @@
 import os
 import json
 import threading
-import time
 from vosk import Model, KaldiRecognizer
 import pyaudio
 from datetime import datetime
@@ -12,6 +11,7 @@ class RealTimeSpeechRecognizer:
     def __init__(self, model_path):
         # 检查模型是否存在
         if not os.path.exists(model_path):
+            print(f'❌ 模型不存在，请到vosk官网下载语言模型 https://alphacephei.com/vosk/models/vosk-model-cn-0.22.zip')
             print(f"❌ 模型路径不存在: {model_path}")
             return
 
@@ -68,6 +68,66 @@ class RealTimeSpeechRecognizer:
                         # 实时显示识别结果
                         print(f"📝 识别结果: {text}")
                         addfunc(text)
+
+                        # 检查是否包含结束关键词
+                        if any(keyword in text for keyword in self.END_KEYWORDS):
+                            self.v.speak('好的主人，已退出')
+                            print("⏹️ 检测到结束关键词，停止录音")
+                            self.stop_recognition()
+
+                else:
+                    # 获取部分识别结果（实时反馈）
+                    partial_result = json.loads(self.recognizer.PartialResult())
+                    partial_text = partial_result.get("partial", "").strip()
+
+                    if partial_text:
+                        # 实时显示正在识别的内容
+                        print(f"⏳ 正在识别: {partial_text}", end='\r')
+
+        except Exception as e:
+            print(f"❌ 录音过程中出现错误: {e}")
+        finally:
+            stream.stop_stream()
+            stream.close()
+
+    def continue_recognition(self):
+        """开始实时语音识别"""
+        with self.lock:
+            self.recording = True
+        print("🎙️ 语音助手已开启，等待您的指令...")
+        # 打开音频流
+        stream = self.p.open(
+            format=pyaudio.paInt16,
+            channels=1,
+            rate=16000,
+            input=True,
+            frames_per_buffer=4000
+        )
+        stream.start_stream()
+
+        try:
+            while True:
+                with self.lock:
+                    if not self.recording:
+                        break
+
+                # 读取音频数据
+                data = stream.read(4000, exception_on_overflow=False)
+
+                if self.recognizer.AcceptWaveform(data):
+                    # 获取完整识别结果
+                    result = json.loads(self.recognizer.Result())
+                    text = result.get("text", "").strip()
+
+                    if text:
+                        self.recognized_text = text
+                        timestamp = datetime.now().strftime("%H:%M:%S")
+                        self.full_transcript.append(f"[{timestamp}] {text}")
+
+                        # 实时显示识别结果
+                        print(f"📝 识别结果: {text}")
+                        addfunc(text)
+
                         # 检查是否包含结束关键词
                         if any(keyword in text for keyword in self.END_KEYWORDS):
                             self.v.speak('好的主人，已退出')
@@ -93,7 +153,7 @@ class RealTimeSpeechRecognizer:
         """停止语音识别"""
         with self.lock:
             self.recording = False
-        print("✅ 录音已停止")
+        self.v.speak('助手已下线，随时等待主人的召唤')
 
     def save_transcript(self, filename="transcript.txt"):
         """保存完整的识别记录"""
@@ -142,9 +202,10 @@ class RealTimeSpeechRecognizer:
 
         else:
             print("❌ 未识别到任何语音内容")
-
+recognizer = None
 def main():
     # 模型路径设置（根据实际情况修改）
+    global recognizer
     model_path = "./vosk-model-cn-0.22"  # 中文模型目录
     recognizer = RealTimeSpeechRecognizer(model_path)
     recognizer.run()
