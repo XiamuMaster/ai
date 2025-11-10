@@ -1,0 +1,14 @@
+[project]
+name = "ai"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "drissionpage>=4.1.1.2",
+    "pyaudio>=0.2.14",
+    "vosk>=0.3.45",
+]
+
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple"
+default = true
