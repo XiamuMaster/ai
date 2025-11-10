@@ -1,6 +1,6 @@
 import subprocess
-from openweb import OpenWeb
-from openapp import run
+from func.openweb import OpenWeb
+from func.openapp import run
 from func.voice import Voice
 v = Voice()
 def addfunc(text):

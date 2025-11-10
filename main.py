@@ -5,7 +5,7 @@ from vosk import Model, KaldiRecognizer
 import pyaudio
 from datetime import datetime
 from func.voice import Voice
-from addfunc import addfunc
+from func.addfunc import addfunc
 
 class RealTimeSpeechRecognizer:
     def __init__(self, model_path):
